@@ -1,1 +1,584 @@
-<h1>Hello</h1>>
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#10131f">
+  <title>Ambi-Bot | Télécommande</title>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      background: #10131f;
+      color: #f4f5ff;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 650px;
+      margin: auto;
+    }
+
+    header {
+      text-align: center;
+      padding: 25px 10px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 36px;
+      color: #80e6ff;
+    }
+
+    header p {
+      color: #aeb5cc;
+      margin-top: 10px;
+    }
+
+    .card {
+      background: #1b2030;
+      border: 1px solid #30394f;
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 8px 25px #0003;
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 20px;
+    }
+
+    .status {
+      padding: 12px;
+      border-radius: 10px;
+      background: #292f40;
+      color: #ffd36b;
+      text-align: center;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    .status.connected {
+      color: #80ffb0;
+      background: #173629;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid #424c65;
+      border-radius: 10px;
+      background: #111624;
+      color: white;
+      font-size: 16px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #80e6ff;
+    }
+
+    button {
+      border: none;
+      border-radius: 11px;
+      padding: 14px;
+      background: #30394f;
+      color: white;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    button:hover {
+      filter: brightness(1.2);
+    }
+
+    button.actif {
+      background: #087f9e;
+      outline: 2px solid #80e6ff;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .grid button {
+      min-height: 55px;
+    }
+
+    .full {
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    .envoi {
+      background: #087f9e;
+    }
+
+    .danger {
+      background: #a83245;
+    }
+
+    .label {
+      display: block;
+      color: #b9c2d8;
+      margin: 15px 0 8px;
+      font-size: 14px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: #80e6ff;
+    }
+
+    input[type="color"] {
+      width: 100%;
+      height: 55px;
+      border: none;
+      border-radius: 10px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 90px;
+      resize: vertical;
+      padding: 14px;
+      border: 1px solid #424c65;
+      border-radius: 10px;
+      background: #111624;
+      color: white;
+      font-size: 16px;
+      font-family: Arial, sans-serif;
+    }
+
+    .small {
+      color: #9da8c2;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    #panneauLeds {
+      display: none;
+    }
+
+    .value {
+      color: #80e6ff;
+      font-weight: bold;
+    }
+
+    footer {
+      text-align: center;
+      color: #727e98;
+      font-size: 12px;
+      padding: 15px;
+    }
+
+    @media (max-width: 420px) {
+      body {
+        padding: 12px;
+      }
+
+      header h1 {
+        font-size: 30px;
+      }
+
+      .card {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <header>
+    <h1>🐱 Ambi-Bot</h1>
+    <p>Ta télécommande à distance</p>
+  </header>
+
+  <!-- CONNEXION MQTT -->
+  <section class="card">
+    <h2>🌐 Connexion à Ambi-Bot</h2>
+
+    <label class="label" for="mqttUser">Identifiant MQTT</label>
+    <input type="text" id="mqttUser"
+           value="NoahDupont"
+           autocomplete="username">
+
+    <label class="label" for="mqttPassword">Mot de passe MQTT</label>
+    <input type="password" id="mqttPassword"
+           placeholder="Ton mot de passe MQTT"
+           autocomplete="current-password">
+
+    <button class="envoi full" id="connecterMQTT">
+      Se connecter
+    </button>
+
+    <div id="connexionMQTT" class="status">
+      Non connecté
+    </div>
+  </section>
+
+  <!-- HUMEUR -->
+  <section class="card">
+    <h2>🎭 Humeur d'Ambi-Bot</h2>
+
+    <p>Humeur actuelle : <span id="actuelle" class="value">Inconnue</span></p>
+
+    <div class="grid">
+      <button data-h="0">😐 Neutre</button>
+      <button data-h="1">😴 Dodo</button>
+      <button data-h="2">😡 Colère</button>
+      <button data-h="3">😨 Peur</button>
+      <button data-h="4">💡 LEDs</button>
+    </div>
+  </section>
+
+  <!-- LEDS -->
+  <section class="card" id="panneauLeds">
+    <h2>💡 Contrôle des LEDs</h2>
+
+    <p>Effet lumineux</p>
+
+    <div class="grid">
+      <button data-p="0">Couleur fixe</button>
+      <button data-p="1">Arc-en-ciel</button>
+      <button data-p="2">Multicolore</button>
+      <button data-p="3">Respiration</button>
+      <button data-p="4">Clignotement</button>
+    </div>
+
+    <label class="label" for="couleur">Choisir une couleur</label>
+    <input type="color" id="couleur" value="#ffffff">
+
+    <p>Couleur sélectionnée :
+      <span id="codeCouleur" class="value">#FFFFFF</span>
+    </p>
+  </section>
+
+  <!-- PAROLE -->
+  <section class="card">
+    <h2>💬 Faire parler Ambi-Bot</h2>
+
+    <textarea id="texte" maxlength="120"
+      placeholder="Écris un message à faire prononcer..."></textarea>
+
+    <p class="small" id="compteur">0 / 120</p>
+
+    <label class="label" for="vitesse">
+      Vitesse : <span id="valVitesse" class="value">Normale</span>
+    </label>
+
+    <input type="range" id="vitesse"
+           min="40" max="200" value="90">
+
+    <button class="envoi full" id="envoyerTexte">
+      Envoyer le message
+    </button>
+
+    <button class="danger full" id="stopTexte">
+      ⏹ Arrêter la parole
+    </button>
+
+    <p class="small" id="parole"></p>
+  </section>
+
+  <div id="statut" class="status">
+    En attente d'une connexion...
+  </div>
+
+  <footer>
+    Ambi-Bot · Télécommande MQTT
+  </footer>
+
+</div>
+
+<script>
+  const MQTT_URL =
+    "wss://zbd21d70.ala.eu-central-1.emqxsl.com:8084/mqtt";
+
+  const TOPIC_COMMANDE =
+    "ambi-bot/NoahDupont/commande";
+
+  const TOPIC_ETAT =
+    "ambi-bot/NoahDupont/etat";
+
+  const noms = [
+    "Neutre",
+    "Dodo",
+    "Colère",
+    "Peur",
+    "LEDs"
+  ];
+
+  const boutons = document.querySelectorAll("button[data-h]");
+  const effets = document.querySelectorAll("button[data-p]");
+
+  const statut = document.getElementById("statut");
+  const panneau = document.getElementById("panneauLeds");
+  const picker = document.getElementById("couleur");
+  const codeCouleur = document.getElementById("codeCouleur");
+  const champ = document.getElementById("texte");
+  const compteur = document.getElementById("compteur");
+  const vitesse = document.getElementById("vitesse");
+  const valVitesse = document.getElementById("valVitesse");
+  const parole = document.getElementById("parole");
+
+  const connexionMQTT =
+    document.getElementById("connexionMQTT");
+
+  const mqttUser = document.getElementById("mqttUser");
+  const mqttPassword = document.getElementById("mqttPassword");
+
+  let client = null;
+  let connecte = false;
+  let dernierEnvoi = 0;
+
+  function afficher(d) {
+    document.getElementById("actuelle").textContent =
+      noms[d.humeur] || "Inconnue";
+
+    boutons.forEach(b => {
+      b.classList.toggle(
+        "actif",
+        Number(b.dataset.h) === d.humeur
+      );
+    });
+
+    panneau.style.display =
+      d.humeur === 4 ? "block" : "none";
+
+    effets.forEach(b => {
+      b.classList.toggle(
+        "actif",
+        Number(b.dataset.p) === d.preset
+      );
+    });
+
+    if (
+      document.activeElement !== picker &&
+      d.couleur
+    ) {
+      picker.value = d.couleur;
+      codeCouleur.textContent =
+        d.couleur.toUpperCase();
+    }
+
+    parole.textContent = d.texteEnCours
+      ? "💬 Ambi-Bot est en train de parler..."
+      : "";
+  }
+
+  function publier(action, donnees = {}) {
+    if (!client || !connecte) {
+      statut.textContent =
+        "Connecte-toi d'abord à Ambi-Bot.";
+      return;
+    }
+
+    client.publish(
+      TOPIC_COMMANDE,
+      JSON.stringify({
+        action: action,
+        ...donnees
+      }),
+      { qos: 0 }
+    );
+  }
+
+  function connecter() {
+    if (typeof mqtt === "undefined") {
+      connexionMQTT.textContent =
+        "Impossible de charger la bibliothèque MQTT.";
+      return;
+    }
+
+    const utilisateur = mqttUser.value.trim();
+    const motDePasse = mqttPassword.value;
+
+    if (!utilisateur || !motDePasse) {
+      connexionMQTT.textContent =
+        "Entre ton identifiant et ton mot de passe MQTT.";
+      return;
+    }
+
+    if (client) {
+      client.end(true);
+    }
+
+    connecte = false;
+    connexionMQTT.classList.remove("connected");
+    connexionMQTT.textContent = "Connexion en cours...";
+
+    client = mqtt.connect(MQTT_URL, {
+      username: utilisateur,
+      password: motDePasse,
+      clientId:
+        "AmbiBot-Web-" +
+        Math.random().toString(16).substring(2),
+      clean: true,
+      connectTimeout: 10000,
+      reconnectPeriod: 3000
+    });
+
+    client.on("connect", () => {
+      connecte = true;
+
+      connexionMQTT.textContent =
+        "Connecté à Ambi-Bot !";
+
+      connexionMQTT.classList.add("connected");
+
+      client.subscribe(TOPIC_ETAT, err => {
+        if (err) {
+          connexionMQTT.textContent =
+            "Erreur d'abonnement aux états.";
+        }
+      });
+    });
+
+    client.on("message", (topic, message) => {
+      if (topic !== TOPIC_ETAT) return;
+
+      try {
+        afficher(JSON.parse(message.toString()));
+        statut.textContent = "État actualisé.";
+      } catch (e) {
+        console.error("État MQTT invalide :", e);
+      }
+    });
+
+    client.on("reconnect", () => {
+      connecte = false;
+      connexionMQTT.classList.remove("connected");
+      connexionMQTT.textContent = "Reconnexion...";
+    });
+
+    client.on("close", () => {
+      connecte = false;
+      connexionMQTT.classList.remove("connected");
+      connexionMQTT.textContent =
+        "Connexion interrompue.";
+    });
+
+    client.on("error", err => {
+      console.error("Erreur MQTT :", err);
+      connexionMQTT.textContent =
+        "Erreur MQTT : vérifie tes identifiants et les autorisations.";
+    });
+  }
+
+  document
+    .getElementById("connecterMQTT")
+    .addEventListener("click", connecter);
+
+  boutons.forEach(b => {
+    b.addEventListener("click", () => {
+      publier("humeur", {
+        value: Number(b.dataset.h)
+      });
+    });
+  });
+
+  effets.forEach(b => {
+    b.addEventListener("click", () => {
+      publier("preset", {
+        value: Number(b.dataset.p)
+      });
+    });
+  });
+
+  picker.addEventListener("input", () => {
+    codeCouleur.textContent =
+      picker.value.toUpperCase();
+
+    const maintenant = Date.now();
+
+    if (maintenant - dernierEnvoi > 200) {
+      dernierEnvoi = maintenant;
+
+      publier("couleur", {
+        value: picker.value
+      });
+    }
+  });
+
+  picker.addEventListener("change", () => {
+    publier("couleur", {
+      value: picker.value
+    });
+  });
+
+  function nomVitesse(v) {
+    if (v < 70) return "Lente";
+    if (v < 120) return "Normale";
+    if (v < 160) return "Rapide";
+    return "Très rapide";
+  }
+
+  vitesse.addEventListener("input", () => {
+    valVitesse.textContent =
+      nomVitesse(Number(vitesse.value));
+  });
+
+  champ.addEventListener("input", () => {
+    compteur.textContent =
+      champ.value.length + " / 120";
+  });
+
+  function envoyerTexte() {
+    const texte = champ.value.trim();
+
+    if (!texte) return;
+
+    publier("parler", {
+      text: texte,
+      speed: Number(vitesse.value)
+    });
+  }
+
+  document
+    .getElementById("envoyerTexte")
+    .addEventListener("click", envoyerTexte);
+
+  champ.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      envoyerTexte();
+    }
+  });
+
+  document
+    .getElementById("stopTexte")
+    .addEventListener("click", () => {
+      publier("stop");
+    });
+
+  valVitesse.textContent =
+    nomVitesse(Number(vitesse.value));
+</script>
+
+</body>
+</html>
