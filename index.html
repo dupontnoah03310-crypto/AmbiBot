@@ -73,7 +73,8 @@
     }
 
     input[type="text"],
-    input[type="password"] {
+    input[type="password"],
+    input[type="number"] {
       width: 100%;
       padding: 14px;
       border: 1px solid #424c65;
@@ -84,7 +85,10 @@
       outline: none;
     }
 
-    input:focus { border-color: #80e6ff; }
+    input:focus,
+    textarea:focus {
+      border-color: #80e6ff;
+    }
 
     button {
       border: none;
@@ -226,6 +230,14 @@
       margin-top: 12px;
     }
 
+    #statutAuto {
+      padding: 12px;
+      border-radius: 10px;
+      background: #292f40;
+      color: #80e6ff;
+      line-height: 1.5;
+    }
+
     footer {
       text-align: center;
       color: #727e98;
@@ -314,7 +326,9 @@
   <section class="card">
     <h2>⏱️ Chrono et minuteur</h2>
 
-    <p class="small">Choisis ce que tu souhaites afficher sur Ambi-Bot :</p>
+    <p class="small">
+      Choisis ce que tu souhaites afficher sur Ambi-Bot :
+    </p>
 
     <div class="modes">
       <button data-m="0">🐱 Visage</button>
@@ -325,7 +339,6 @@
 
     <hr class="separateur">
 
-    <!-- HORLOGE -->
     <div>
       <h2>🕒 Heure actuelle</h2>
       <div class="horloge" id="tHeure">--:--:--</div>
@@ -389,6 +402,54 @@
     </div>
   </section>
 
+  <!-- PHRASES AUTOMATIQUES -->
+  <section class="card">
+    <h2>🎲 Phrases automatiques</h2>
+
+    <p class="small">
+      Ambi-Bot choisira une phrase au hasard et la prononcera
+      automatiquement à intervalles aléatoires.
+    </p>
+
+    <label class="label" for="phrasesAuto">
+      Mes phrases (une par ligne)
+    </label>
+
+    <textarea id="phrasesAuto"
+      maxlength="5000"
+      placeholder="Salut !&#10;Tu vas bien ?&#10;Je suis Ambi-Bot !&#10;Tu veux jouer avec moi ?"></textarea>
+
+    <p class="small">
+      Une phrase ne peut pas dépasser 120 caractères.
+    </p>
+
+    <label class="label" for="delaiMin">
+      Délai minimum (minutes)
+    </label>
+
+    <input type="number" id="delaiMin"
+      value="2" min="1" max="1440">
+
+    <label class="label" for="delaiMax">
+      Délai maximum (minutes)
+    </label>
+
+    <input type="number" id="delaiMax"
+      value="10" min="1" max="1440">
+
+    <button class="envoi full" id="demarrerAuto">
+      ▶ Activer les phrases automatiques
+    </button>
+
+    <button class="danger full" id="arreterAuto">
+      ⏹ Désactiver
+    </button>
+
+    <p class="small" id="statutAuto">
+      Phrases automatiques désactivées.
+    </p>
+  </section>
+
   <!-- PAROLE -->
   <section class="card">
     <h2>💬 Faire parler Ambi-Bot</h2>
@@ -427,6 +488,10 @@
 </div>
 
 <script>
+  // ==========================================
+  // CONFIGURATION MQTT
+  // ==========================================
+
   const MQTT_URL =
     "wss://zbd21d70.ala.eu-central-1.emqxsl.com:8084/mqtt";
 
@@ -472,7 +537,10 @@
   let connecte = false;
   let dernierEnvoi = 0;
 
-  // État de l'horloge reçu depuis l'ESP32
+  // ==========================================
+  // ETAT DE L'HORLOGE
+  // ==========================================
+
   let etatHorloge = null;
   let recuLe = 0;
 
@@ -506,7 +574,7 @@
       ? "💬 Ambi-Bot est en train de parler..."
       : "";
 
-    // Récupération des données chrono/minuteur
+    // Données chrono et minuteur
     if (d.chrono !== undefined) {
       etatHorloge = {
         mode: Number(d.mode ?? 0),
@@ -528,12 +596,10 @@
         );
       });
 
-      // Bouton du chronomètre
       chronoToggle.textContent = etatHorloge.chronoActif
         ? "⏸ Pause"
         : "▶ Démarrer";
 
-      // Bouton du minuteur
       const textesMinuteur = [
         "▶ Démarrer",
         "⏸ Pause",
@@ -544,7 +610,6 @@
       minToggle.textContent =
         textesMinuteur[etatHorloge.minEtat] || "▶ Démarrer";
 
-      // Autoriser les réglages uniquement en mode réglage
       ajouts.forEach(b => {
         b.disabled = etatHorloge.minEtat !== 0;
       });
@@ -566,7 +631,6 @@
     }
   }
 
-  // Formatage des durées
   function formaterTemps(ms, avecHeures = true) {
     ms = Math.max(0, Math.floor(ms));
 
@@ -586,7 +650,6 @@
     return deux(minutes) + ":" + deux(secondes);
   }
 
-  // Affichage fluide entre deux publications MQTT
   function afficherTemps() {
     if (!etatHorloge) return;
 
@@ -611,14 +674,17 @@
       formaterTemps(tempsMinuteur, false);
   }
 
-  // Actualisation visuelle 10 fois par seconde
   setInterval(afficherTemps, 100);
+
+  // ==========================================
+  // ENVOI MQTT
+  // ==========================================
 
   function publier(action, donnees = {}) {
     if (!client || !connecte) {
       statut.textContent =
         "Connecte-toi d'abord à Ambi-Bot.";
-      return;
+      return false;
     }
 
     client.publish(
@@ -629,9 +695,14 @@
       }),
       { qos: 0 }
     );
+
+    return true;
   }
 
+  // ==========================================
   // CONNEXION MQTT
+  // ==========================================
+
   function connecter() {
     if (typeof mqtt === "undefined") {
       connexionMQTT.textContent =
@@ -715,11 +786,13 @@
     });
   }
 
-  document
-    .getElementById("connecterMQTT")
+  document.getElementById("connecterMQTT")
     .addEventListener("click", connecter);
 
+  // ==========================================
   // HUMEUR
+  // ==========================================
+
   boutons.forEach(b => {
     b.addEventListener("click", () => {
       publier("humeur", {
@@ -728,7 +801,10 @@
     });
   });
 
+  // ==========================================
   // LEDS
+  // ==========================================
+
   effets.forEach(b => {
     b.addEventListener("click", () => {
       publier("preset", {
@@ -757,7 +833,10 @@
     });
   });
 
-  // CHOIX DU MODE D'AFFICHAGE
+  // ==========================================
+  // MODES D'AFFICHAGE
+  // ==========================================
+
   modes.forEach(b => {
     b.addEventListener("click", () => {
       publier("mode", {
@@ -766,7 +845,10 @@
     });
   });
 
-  // CHRONOMÈTRE
+  // ==========================================
+  // CHRONO
+  // ==========================================
+
   chronoToggle.addEventListener("click", () => {
     publier("chrono", {
       value: "toggle"
@@ -780,7 +862,10 @@
       });
     });
 
+  // ==========================================
   // MINUTEUR
+  // ==========================================
+
   minToggle.addEventListener("click", () => {
     publier("minuteur", {
       value: "toggle"
@@ -794,7 +879,6 @@
       });
     });
 
-  // AJOUT / RETRAIT DE TEMPS
   ajouts.forEach(b => {
     b.addEventListener("click", () => {
       publier("minuteur", {
@@ -804,7 +888,165 @@
     });
   });
 
+  // ==========================================
+  // PHRASES AUTOMATIQUES ALEATOIRES
+  // ==========================================
+
+  let phrasesActives = false;
+  let minuteriePhrases = null;
+  let dernierePhrase = "";
+
+  const champPhrases =
+    document.getElementById("phrasesAuto");
+
+  const delaiMin =
+    document.getElementById("delaiMin");
+
+  const delaiMax =
+    document.getElementById("delaiMax");
+
+  const statutAuto =
+    document.getElementById("statutAuto");
+
+  function programmerPhrase() {
+    if (!phrasesActives) return;
+
+    const minimum = Number(delaiMin.value);
+    const maximum = Number(delaiMax.value);
+
+    if (
+      !Number.isFinite(minimum) ||
+      !Number.isFinite(maximum) ||
+      minimum < 1 ||
+      maximum < minimum ||
+      maximum > 1440
+    ) {
+      statutAuto.textContent =
+        "Délais invalides : vérifie les valeurs.";
+      phrasesActives = false;
+      return;
+    }
+
+    const delai =
+      (minimum + Math.random() * (maximum - minimum)) * 60000;
+
+    statutAuto.textContent =
+      "🟢 Activé ! Prochaine phrase dans environ " +
+      Math.ceil(delai / 60000) + " minute(s).";
+
+    minuteriePhrases = setTimeout(() => {
+      if (!phrasesActives) return;
+
+      const liste = champPhrases.value
+        .split("\n")
+        .map(p => p.trim())
+        .filter(p => p.length > 0 && p.length <= 120);
+
+      if (liste.length === 0) {
+        statutAuto.textContent =
+          "Aucune phrase valide. Ajoute des phrases de 120 caractères maximum.";
+        phrasesActives = false;
+        return;
+      }
+
+      let disponibles = liste.filter(
+        p => p !== dernierePhrase
+      );
+
+      if (disponibles.length === 0) {
+        disponibles = liste;
+      }
+
+      const phrase =
+        disponibles[Math.floor(Math.random() * disponibles.length)];
+
+      dernierePhrase = phrase;
+
+      if (client && connecte) {
+        const envoye = publier("parler", {
+          text: phrase,
+          speed: Number(vitesse.value)
+        });
+
+        if (envoye) {
+          statutAuto.textContent =
+            "💬 Phrase envoyée : " + phrase;
+        }
+      } else {
+        statutAuto.textContent =
+          "⚠️ Ambi-Bot est déconnecté. Phrase non envoyée.";
+      }
+
+      // Programmer la prochaine phrase
+      programmerPhrase();
+
+    }, delai);
+  }
+
+  // ACTIVER LES PHRASES AUTOMATIQUES
+  document.getElementById("demarrerAuto")
+    .addEventListener("click", () => {
+
+      if (!client || !connecte) {
+        statutAuto.textContent =
+          "⚠️ Connecte-toi d'abord à Ambi-Bot.";
+        return;
+      }
+
+      const liste = champPhrases.value
+        .split("\n")
+        .map(p => p.trim())
+        .filter(p => p.length > 0 && p.length <= 120);
+
+      if (liste.length === 0) {
+        statutAuto.textContent =
+          "Écris au moins une phrase de 120 caractères maximum.";
+        return;
+      }
+
+      const minimum = Number(delaiMin.value);
+      const maximum = Number(delaiMax.value);
+
+      if (
+        !Number.isFinite(minimum) ||
+        !Number.isFinite(maximum) ||
+        minimum < 1 ||
+        maximum < minimum ||
+        maximum > 1440
+      ) {
+        statutAuto.textContent =
+          "Vérifie les délais minimum et maximum.";
+        return;
+      }
+
+      phrasesActives = true;
+      dernierePhrase = "";
+
+      clearTimeout(minuteriePhrases);
+
+      statutAuto.textContent =
+        "🟢 Phrases automatiques activées !";
+
+      programmerPhrase();
+    });
+
+  // DESACTIVER LES PHRASES AUTOMATIQUES
+  document.getElementById("arreterAuto")
+    .addEventListener("click", () => {
+
+      phrasesActives = false;
+
+      clearTimeout(minuteriePhrases);
+      minuteriePhrases = null;
+
+      statutAuto.textContent =
+        "⏹ Phrases automatiques désactivées.";
+    });
+
+  // ==========================================
   // VITESSE DE PAROLE
+  // ==========================================
+
   function nomVitesse(v) {
     if (v < 70) return "Lente";
     if (v < 120) return "Normale";
@@ -817,7 +1059,10 @@
       nomVitesse(Number(vitesse.value));
   });
 
-  // TEXTE
+  // ==========================================
+  // TEXTE MANUEL
+  // ==========================================
+
   champ.addEventListener("input", () => {
     compteur.textContent =
       champ.value.length + " / 120";
@@ -851,6 +1096,7 @@
 
   valVitesse.textContent =
     nomVitesse(Number(vitesse.value));
+
 </script>
 
 </body>
