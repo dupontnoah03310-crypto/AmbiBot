@@ -10,9 +10,7 @@
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -86,9 +84,7 @@
       outline: none;
     }
 
-    input:focus {
-      border-color: #80e6ff;
-    }
+    input:focus { border-color: #80e6ff; }
 
     button {
       border: none;
@@ -102,17 +98,18 @@
       transition: 0.15s;
     }
 
-    button:active {
-      transform: scale(0.97);
-    }
-
-    button:hover {
-      filter: brightness(1.2);
-    }
+    button:active { transform: scale(0.97); }
+    button:hover { filter: brightness(1.2); }
 
     button.actif {
       background: #087f9e;
       outline: 2px solid #80e6ff;
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      filter: none;
     }
 
     .grid {
@@ -121,22 +118,15 @@
       gap: 10px;
     }
 
-    .grid button {
-      min-height: 55px;
-    }
+    .grid button { min-height: 55px; }
 
     .full {
       width: 100%;
       margin-top: 12px;
     }
 
-    .envoi {
-      background: #087f9e;
-    }
-
-    .danger {
-      background: #a83245;
-    }
+    .envoi { background: #087f9e; }
+    .danger { background: #a83245; }
 
     .label {
       display: block;
@@ -178,13 +168,62 @@
       margin-top: 8px;
     }
 
-    #panneauLeds {
-      display: none;
-    }
+    #panneauLeds { display: none; }
 
     .value {
       color: #80e6ff;
       font-weight: bold;
+    }
+
+    .horloge {
+      text-align: center;
+      font-size: clamp(34px, 9vw, 52px);
+      font-weight: bold;
+      color: #80e6ff;
+      font-variant-numeric: tabular-nums;
+      margin: 18px 0;
+      letter-spacing: 2px;
+    }
+
+    .horloge-secondaire {
+      text-align: center;
+      color: #aeb5cc;
+      font-size: 14px;
+      margin-bottom: 15px;
+    }
+
+    .modes {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 9px;
+    }
+
+    .commandes-temps {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .ajouts {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .separateur {
+      border: 0;
+      border-top: 1px solid #30394f;
+      margin: 22px 0;
+    }
+
+    #alarme {
+      display: none;
+      color: #ff8292;
+      text-align: center;
+      font-weight: bold;
+      margin-top: 12px;
     }
 
     footer {
@@ -195,17 +234,9 @@
     }
 
     @media (max-width: 420px) {
-      body {
-        padding: 12px;
-      }
-
-      header h1 {
-        font-size: 30px;
-      }
-
-      .card {
-        padding: 16px;
-      }
+      body { padding: 12px; }
+      header h1 { font-size: 30px; }
+      .card { padding: 16px; }
     }
   </style>
 </head>
@@ -224,8 +255,7 @@
 
     <label class="label" for="mqttUser">Identifiant MQTT</label>
     <input type="text" id="mqttUser"
-           value="NoahDupont"
-           autocomplete="username">
+           value="NoahDupont" autocomplete="username">
 
     <label class="label" for="mqttPassword">Mot de passe MQTT</label>
     <input type="password" id="mqttPassword"
@@ -245,7 +275,9 @@
   <section class="card">
     <h2>🎭 Humeur d'Ambi-Bot</h2>
 
-    <p>Humeur actuelle : <span id="actuelle" class="value">Inconnue</span></p>
+    <p>Humeur actuelle :
+      <span id="actuelle" class="value">Inconnue</span>
+    </p>
 
     <div class="grid">
       <button data-h="0">😐 Neutre</button>
@@ -276,6 +308,85 @@
     <p>Couleur sélectionnée :
       <span id="codeCouleur" class="value">#FFFFFF</span>
     </p>
+  </section>
+
+  <!-- CHRONO ET MINUTEUR -->
+  <section class="card">
+    <h2>⏱️ Chrono et minuteur</h2>
+
+    <p class="small">Choisis ce que tu souhaites afficher sur Ambi-Bot :</p>
+
+    <div class="modes">
+      <button data-m="0">🐱 Visage</button>
+      <button data-m="1">🕒 Horloge</button>
+      <button data-m="2">⏱️ Chrono</button>
+      <button data-m="3">⏳ Minuteur</button>
+    </div>
+
+    <hr class="separateur">
+
+    <!-- HORLOGE -->
+    <div>
+      <h2>🕒 Heure actuelle</h2>
+      <div class="horloge" id="tHeure">--:--:--</div>
+      <p class="horloge-secondaire" id="infoHeure">
+        En attente de synchronisation...
+      </p>
+    </div>
+
+    <hr class="separateur">
+
+    <!-- CHRONO -->
+    <div>
+      <h2>⏱️ Chronomètre</h2>
+
+      <div class="horloge" id="tChrono">00:00:00</div>
+
+      <div class="commandes-temps">
+        <button class="envoi" id="chronoToggle">
+          ▶ Démarrer
+        </button>
+
+        <button class="danger" id="chronoReset">
+          ↺ Remise à zéro
+        </button>
+      </div>
+    </div>
+
+    <hr class="separateur">
+
+    <!-- MINUTEUR -->
+    <div>
+      <h2>⏳ Minuteur</h2>
+
+      <div class="horloge" id="tMin">00:00</div>
+
+      <p class="horloge-secondaire" id="minStatut">
+        Réglage du minuteur
+      </p>
+
+      <div class="commandes-temps">
+        <button class="envoi" id="minToggle">
+          ▶ Démarrer
+        </button>
+
+        <button class="danger" id="minReset">
+          ↺ Réinitialiser
+        </button>
+      </div>
+
+      <p class="small">Ajouter ou retirer du temps :</p>
+
+      <div class="ajouts">
+        <button data-a="-60">− 1 min</button>
+        <button data-a="60">+ 1 min</button>
+        <button data-a="10">+ 10 sec</button>
+      </div>
+
+      <div id="alarme">
+        🔔 Minuteur terminé !
+      </div>
+    </div>
   </section>
 
   <!-- PAROLE -->
@@ -326,15 +437,13 @@
     "ambi-bot/NoahDupont/etat";
 
   const noms = [
-    "Neutre",
-    "Dodo",
-    "Colère",
-    "Peur",
-    "LEDs"
+    "Neutre", "Dodo", "Colère", "Peur", "LEDs"
   ];
 
   const boutons = document.querySelectorAll("button[data-h]");
   const effets = document.querySelectorAll("button[data-p]");
+  const modes = document.querySelectorAll("button[data-m]");
+  const ajouts = document.querySelectorAll("button[data-a]");
 
   const statut = document.getElementById("statut");
   const panneau = document.getElementById("panneauLeds");
@@ -346,15 +455,26 @@
   const valVitesse = document.getElementById("valVitesse");
   const parole = document.getElementById("parole");
 
-  const connexionMQTT =
-    document.getElementById("connexionMQTT");
-
+  const connexionMQTT = document.getElementById("connexionMQTT");
   const mqttUser = document.getElementById("mqttUser");
   const mqttPassword = document.getElementById("mqttPassword");
+
+  const tHeure = document.getElementById("tHeure");
+  const tChrono = document.getElementById("tChrono");
+  const tMin = document.getElementById("tMin");
+
+  const chronoToggle = document.getElementById("chronoToggle");
+  const minToggle = document.getElementById("minToggle");
+  const minStatut = document.getElementById("minStatut");
+  const alarme = document.getElementById("alarme");
 
   let client = null;
   let connecte = false;
   let dernierEnvoi = 0;
+
+  // État de l'horloge reçu depuis l'ESP32
+  let etatHorloge = null;
+  let recuLe = 0;
 
   function afficher(d) {
     document.getElementById("actuelle").textContent =
@@ -363,33 +483,136 @@
     boutons.forEach(b => {
       b.classList.toggle(
         "actif",
-        Number(b.dataset.h) === d.humeur
+        Number(b.dataset.h) === Number(d.humeur)
       );
     });
 
     panneau.style.display =
-      d.humeur === 4 ? "block" : "none";
+      Number(d.humeur) === 4 ? "block" : "none";
 
     effets.forEach(b => {
       b.classList.toggle(
         "actif",
-        Number(b.dataset.p) === d.preset
+        Number(b.dataset.p) === Number(d.preset)
       );
     });
 
-    if (
-      document.activeElement !== picker &&
-      d.couleur
-    ) {
+    if (document.activeElement !== picker && d.couleur) {
       picker.value = d.couleur;
-      codeCouleur.textContent =
-        d.couleur.toUpperCase();
+      codeCouleur.textContent = d.couleur.toUpperCase();
     }
 
     parole.textContent = d.texteEnCours
       ? "💬 Ambi-Bot est en train de parler..."
       : "";
+
+    // Récupération des données chrono/minuteur
+    if (d.chrono !== undefined) {
+      etatHorloge = {
+        mode: Number(d.mode ?? 0),
+        chrono: Number(d.chrono) || 0,
+        chronoActif: Boolean(d.chronoActif),
+        minEtat: Number(d.minEtat ?? 0),
+        minRestant: Number(d.minRestant) || 0,
+        minDuree: Number(d.minDuree) || 0,
+        alarme: Boolean(d.alarme),
+        heure: d.heure || ""
+      };
+
+      recuLe = performance.now();
+
+      modes.forEach(b => {
+        b.classList.toggle(
+          "actif",
+          Number(b.dataset.m) === etatHorloge.mode
+        );
+      });
+
+      // Bouton du chronomètre
+      chronoToggle.textContent = etatHorloge.chronoActif
+        ? "⏸ Pause"
+        : "▶ Démarrer";
+
+      // Bouton du minuteur
+      const textesMinuteur = [
+        "▶ Démarrer",
+        "⏸ Pause",
+        "▶ Reprendre",
+        "🔕 Arrêter l'alarme"
+      ];
+
+      minToggle.textContent =
+        textesMinuteur[etatHorloge.minEtat] || "▶ Démarrer";
+
+      // Autoriser les réglages uniquement en mode réglage
+      ajouts.forEach(b => {
+        b.disabled = etatHorloge.minEtat !== 0;
+      });
+
+      alarme.style.display = etatHorloge.alarme
+        ? "block"
+        : "none";
+
+      minStatut.textContent = [
+        "Réglage du minuteur",
+        "Minuteur en marche",
+        "Minuteur en pause",
+        "Minuteur terminé"
+      ][etatHorloge.minEtat] || "Minuteur";
+
+      tHeure.textContent = etatHorloge.heure || "--:--:--";
+
+      afficherTemps();
+    }
   }
+
+  // Formatage des durées
+  function formaterTemps(ms, avecHeures = true) {
+    ms = Math.max(0, Math.floor(ms));
+
+    const totalSecondes = Math.floor(ms / 1000);
+    const heures = Math.floor(totalSecondes / 3600);
+    const minutes = Math.floor((totalSecondes % 3600) / 60);
+    const secondes = totalSecondes % 60;
+
+    const deux = n => String(n).padStart(2, "0");
+
+    if (avecHeures || heures > 0) {
+      return deux(heures) + ":" +
+             deux(minutes) + ":" +
+             deux(secondes);
+    }
+
+    return deux(minutes) + ":" + deux(secondes);
+  }
+
+  // Affichage fluide entre deux publications MQTT
+  function afficherTemps() {
+    if (!etatHorloge) return;
+
+    const ecoule = Math.max(0, performance.now() - recuLe);
+
+    let tempsChrono = etatHorloge.chrono;
+
+    if (etatHorloge.chronoActif) {
+      tempsChrono += ecoule;
+    }
+
+    tChrono.textContent =
+      formaterTemps(tempsChrono, true);
+
+    let tempsMinuteur = etatHorloge.minRestant;
+
+    if (etatHorloge.minEtat === 1) {
+      tempsMinuteur -= ecoule;
+    }
+
+    tMin.textContent =
+      formaterTemps(tempsMinuteur, false);
+  }
+
+  // Actualisation visuelle 10 fois par seconde
+  setInterval(afficherTemps, 100);
 
   function publier(action, donnees = {}) {
     if (!client || !connecte) {
@@ -408,6 +631,7 @@
     );
   }
 
+  // CONNEXION MQTT
   function connecter() {
     if (typeof mqtt === "undefined") {
       connexionMQTT.textContent =
@@ -429,6 +653,8 @@
     }
 
     connecte = false;
+    etatHorloge = null;
+
     connexionMQTT.classList.remove("connected");
     connexionMQTT.textContent = "Connexion en cours...";
 
@@ -479,8 +705,7 @@
     client.on("close", () => {
       connecte = false;
       connexionMQTT.classList.remove("connected");
-      connexionMQTT.textContent =
-        "Connexion interrompue.";
+      connexionMQTT.textContent = "Connexion interrompue.";
     });
 
     client.on("error", err => {
@@ -494,6 +719,7 @@
     .getElementById("connecterMQTT")
     .addEventListener("click", connecter);
 
+  // HUMEUR
   boutons.forEach(b => {
     b.addEventListener("click", () => {
       publier("humeur", {
@@ -502,6 +728,7 @@
     });
   });
 
+  // LEDS
   effets.forEach(b => {
     b.addEventListener("click", () => {
       publier("preset", {
@@ -511,8 +738,7 @@
   });
 
   picker.addEventListener("input", () => {
-    codeCouleur.textContent =
-      picker.value.toUpperCase();
+    codeCouleur.textContent = picker.value.toUpperCase();
 
     const maintenant = Date.now();
 
@@ -531,6 +757,54 @@
     });
   });
 
+  // CHOIX DU MODE D'AFFICHAGE
+  modes.forEach(b => {
+    b.addEventListener("click", () => {
+      publier("mode", {
+        value: Number(b.dataset.m)
+      });
+    });
+  });
+
+  // CHRONOMÈTRE
+  chronoToggle.addEventListener("click", () => {
+    publier("chrono", {
+      value: "toggle"
+    });
+  });
+
+  document.getElementById("chronoReset")
+    .addEventListener("click", () => {
+      publier("chrono", {
+        value: "reset"
+      });
+    });
+
+  // MINUTEUR
+  minToggle.addEventListener("click", () => {
+    publier("minuteur", {
+      value: "toggle"
+    });
+  });
+
+  document.getElementById("minReset")
+    .addEventListener("click", () => {
+      publier("minuteur", {
+        value: "reset"
+      });
+    });
+
+  // AJOUT / RETRAIT DE TEMPS
+  ajouts.forEach(b => {
+    b.addEventListener("click", () => {
+      publier("minuteur", {
+        value: "add",
+        amount: Number(b.dataset.a)
+      });
+    });
+  });
+
+  // VITESSE DE PAROLE
   function nomVitesse(v) {
     if (v < 70) return "Lente";
     if (v < 120) return "Normale";
@@ -543,6 +817,7 @@
       nomVitesse(Number(vitesse.value));
   });
 
+  // TEXTE
   champ.addEventListener("input", () => {
     compteur.textContent =
       champ.value.length + " / 120";
@@ -559,8 +834,7 @@
     });
   }
 
-  document
-    .getElementById("envoyerTexte")
+  document.getElementById("envoyerTexte")
     .addEventListener("click", envoyerTexte);
 
   champ.addEventListener("keydown", e => {
@@ -570,8 +844,7 @@
     }
   });
 
-  document
-    .getElementById("stopTexte")
+  document.getElementById("stopTexte")
     .addEventListener("click", () => {
       publier("stop");
     });
